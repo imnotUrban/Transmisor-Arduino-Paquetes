@@ -1,19 +1,15 @@
 #include <VirtualWire.h>
-/*
-ver ::cl 20120520
-Configuracion basica para modulo transmisor RT 11
-Utiliza libreria VirtualWire.h
-pin 01 entrada desde Arduino pin digital 2
-pin 02 Tierra
-pin 07 tierra
-pin 08 antena externa
-pin 09 tierra
-pin 10 5v
-*/
 
-/*
-* Función CRC
-*/
+uint8_t ceros = B00000000;
+uint8_t origen[2] = {B00000000,B00000010};  // Grupo origen
+uint8_t destino[2] = {B00000000,B00000010};  // Grupo destino
+uint8_t secuencia = B00000000;  // Numero de paquete actual enviado
+uint8_t total = B00000101; // Cantidad total de veces a enviar el paquete (5)
+
+const char *msg = "G 02";
+uint8_t mensaje[8] = {0};
+uint8_t mensaje_completo[16] = {0};
+
 char* MakeCRC(const char* BitString)
 {
    static char Res[6];                                 // CRC Result
@@ -41,110 +37,73 @@ char* MakeCRC(const char* BitString)
 }
 
 
-uint8_t origen[2] = {B00000000,B00000010};  // Grupo origen
-uint8_t destino[2] = {B00000000,B00000010};  // Grupo destino
-// uint8_t destino[2] = {0b00000000,0b00000000};  // Grupo destino
-uint8_t secuencia = B00000001;  // Numero de paquete actual enviado
-uint8_t total = B00000101; // Cantidad total de veces a enviar el paquete (5)
-uint8_t msg_1[8] = {B00000000, //" "
-                B00000000, //" "
-                B00000000, //" "
-                B00000000, //" "
-                B01000111, //"G"
-                B00100000, //" "
-                B00110000, //"0"
-                B00110010 //"2"
-};
-uint8_t crc = B00010011;
-
-uint8_t mensaje_completo[16];
-
-
-
-const char *msg = "G 02";
-
-
-
 void setup(){
   vw_set_ptt_inverted(true);
   vw_setup(2000);
   vw_set_tx_pin(2);    
   Serial.begin(9600);
-  /*
-  *Origen
-  */
+
+  int length = strlen(msg);
+  int startIndex = 8 - length; // Para guardar en el arreglo de derecha a izquierda
+
+  // Recorrer la cadena y convertir los caracteres en bytes
+  for (int i = 0; i < length; i++) {
+    int index = startIndex + i; // Obtener el índice en el arreglo de destino
+    mensaje[index] = byte(msg[i]); // Convertir el caracter en su representación binaria
+  }
+
+  String bitString;
+
+  for (int i = 0; i < 8; ++i) {
+    for (int j = 7; j >= 0; --j) {
+      bitString += ((mensaje[i] >> j) & 1) ? '1' : '0';
+    }
+  }
+
+  const char *Data = bitString.c_str();
+  char* Result = MakeCRC(Data);
+  uint8_t crc = strtol(Result, NULL, 2);
+
+  /*Origen*/
   mensaje_completo[0] = origen[0];
   mensaje_completo[1] = origen[1];
-  /*
-  *Destino
-  */
+  
+  /*Destino*/
   mensaje_completo[2] = destino[0];
   mensaje_completo[3] = destino[1];
 
-  /*
-  * CRC
-  */
-
-  mensaje_completo[4] = crc;
+  /*CRC*/
+  mensaje_completo[4] = ceros;
   mensaje_completo[5] = crc;
 
-  /*
-  * Secuencia
-  */
-
+  /*Secuencia*/
   mensaje_completo[6] = secuencia;
 
-  /*
-  * Total de paquetes
-  */
-
+  /*Total de paquetes*/
   mensaje_completo[7] = total;
 
-  /*
-  * Mensaje
-  */
-  mensaje_completo[8] = msg_1[0];
-  mensaje_completo[9] = msg_1[1];
-  mensaje_completo[10] = msg_1[2];
-  mensaje_completo[11] = msg_1[3];
-  mensaje_completo[12] = msg_1[4];
-  mensaje_completo[13] = msg_1[5];
-  mensaje_completo[14] = msg_1[6];
-  mensaje_completo[15] = msg_1[7];
+  /*Mensaje*/
+  mensaje_completo[8] = mensaje[0];
+  mensaje_completo[9] = mensaje[1];
+  mensaje_completo[10] = mensaje[2];
+  mensaje_completo[11] = mensaje[3];
+  mensaje_completo[12] = mensaje[4];
+  mensaje_completo[13] = mensaje[5];
+  mensaje_completo[14] = mensaje[6];
+  mensaje_completo[15] = mensaje[7];
 
-
-  Serial.println("configurando envio");
 }
 
-
-
-
-
 void loop(){
+  secuencia = B00000000;
+  for(secuencia; secuencia < int(total); secuencia++){
 
-   const char* Data = "1101000101000111";
-   char* Result = MakeCRC(Data);                         // Calculate CRC
-   
-   Serial.print("CRC of [");
-   Serial.print(Data);
-   Serial.print("] is [");
-   Serial.print(Result);
-   Serial.println("] with P=[100101]");
-
-   Serial.println("Enviamos tooooodo el binario: ");
-  for(int i = 0; i<16; i++){
-    Serial.print(mensaje_completo[i],BIN);
+    vw_send(mensaje_completo, 16);
+    vw_wait_tx();
+    mensaje_completo[6] = secuencia;
+    Serial.print(int(secuencia));
   }
-
-  /*
-  * Envío 
-  */
-  vw_send(mensaje_completo, 16);
-
-  digitalWrite(13, false);
-  // vw_send((byte *)origen, strlen(origen));
-  vw_wait_tx();
+  Serial.print("\n");
   delay(1000);
-  Serial.println("mensaje enviado");
-   
+  // Serial.println("mensaje enviado");
 }
