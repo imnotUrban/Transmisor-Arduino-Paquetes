@@ -14,15 +14,17 @@ pin 15 5v
 */
 #include <VirtualWire.h>
 
+int contador = 0;
+
 char* MakeCRC(const char* BitString)
 {
    static char Res[6];                                 // CRC Result
    char CRC[5];
    int i;
    char DoInvert;
-   
+
    for (i = 0; i < 5; ++i) CRC[i] = 0;                 // Init before calculation
-   
+
    for (i = 0; i < strlen(BitString); ++i)
    {
       DoInvert = ('1' == BitString[i]) ^ CRC[4];       // XOR required?
@@ -33,7 +35,7 @@ char* MakeCRC(const char* BitString)
       CRC[1] = CRC[0];
       CRC[0] = DoInvert;
    }
-      
+
    for (i = 0; i < 5; ++i) Res[4 - i] = CRC[i] ? '1' : '0'; // Convert binary to ASCII
    Res[5] = '\0';                                      // Set string terminator
 
@@ -46,7 +48,7 @@ uint8_t destino[2] = {B00000000, B00000010};
 
 void setup(){
     Serial.begin(9600);
-    vw_set_ptt_inverted(true); 
+    vw_set_ptt_inverted(true);
     vw_setup(2000);
     vw_set_rx_pin(2);
     vw_rx_start();
@@ -55,12 +57,96 @@ void setup(){
 void loop(){
   uint8_t buf[VW_MAX_MESSAGE_LEN];
   uint8_t buflen = VW_MAX_MESSAGE_LEN;
+  uint8_t Mensaje_recibido[8];
 
   if (vw_get_message(buf, &buflen)){
-    if((destino[1] == buf[3]) || (buf[3] == 0)){
-      Serial.println("Numero grupo\n");
+    if((destino[1] == buf[3]) || (buf[3] == 0))
+    {
+      /**************************************************
+      ***  Verificación de la integridad del mensaje  ***
+      ***             A través del CRC                ***
+      **************************************************/
+      
+      // Recibe mensaje
+      for(int i = 0; i<8; i++){
+        Mensaje_recibido[i] = buf[8+i];
+      }
+
+      String bitString;
+
+      for (int i = 0; i < 8; ++i) {
+        for (int j = 7; j >= 0; --j) {
+          bitString += ((Mensaje_recibido[i] >> j) & 1) ? '1' : '0';
+        }
+      }
+
+      /*
+      * Calcula CRC en base al mensaje recibido
+      */
+
+      const char *Data = bitString.c_str();
+      char* Result = MakeCRC(Data);
+      uint8_t crc = strtol(Result, NULL, 2);
+
+
+      /*
+      * Validación del CRC
+      */
+
+      uint8_t CRC_recibido = buf[5];    //CRC recibido desde el emisor
+      
+
+      if(CRC_recibido == crc){
+        Serial.println("CRC Recibido correctamente");
+
+              /*
+      * Recepción del grupo
+      */
+      Serial.println("Numero grupo");
       Serial.print(buf[3]);
       Serial.print("\n");
+
+      /*
+      * Secuencia
+      */
+
+      Serial.print("Secuencia: ");
+      Serial.print(buf[6]);
+      Serial.print("\n");
+
+      
+      /*
+      * Mensaje
+      */
+
+      Serial.print(" Mensaje: ");
+      for(int i = 0; i<8; i++){
+        if((char)buf[8+i]!=NULL){
+
+          Serial.print((char)buf[8+i]);
+        }
+      }
+      Serial.print("\n");
+
+      } else{
+        Serial.println("nones");
+      }
+
+
+
+
+
+      //Serial.println("CRC: " );
+      // Serial.println(crc,BIN);
+
+
+
+      // Serial.print("Crc recibido: ");
+      // Serial.println(CRC_recibido,BIN);
+
+
+        // Serial.print("Secuencia: ");
+        // //Serial.print(buf[6]);
     };
   }
 }
