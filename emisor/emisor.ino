@@ -12,16 +12,16 @@ uint8_t mensaje_completo[16] = {0};
 
 char* MakeCRC(const char* BitString)
 {
-   static char Res[6];                                 // CRC Result
+   static char Res[6];                                 // Respuesta crc
    char CRC[5];
    int i;
    char DoInvert;
    
-   for (i = 0; i < 5; ++i) CRC[i] = 0;                 // Init before calculation
+   for (i = 0; i < 5; ++i) CRC[i] = 0;                 // Inicia antes de calcular
    
    for (i = 0; i < strlen(BitString); ++i)
    {
-      DoInvert = ('1' == BitString[i]) ^ CRC[4];       // XOR required?
+      DoInvert = ('1' == BitString[i]) ^ CRC[4];       // XOR
 
       CRC[4] = CRC[3];
       CRC[3] = CRC[2];
@@ -30,8 +30,8 @@ char* MakeCRC(const char* BitString)
       CRC[0] = DoInvert;
    }
       
-   for (i = 0; i < 5; ++i) Res[4 - i] = CRC[i] ? '1' : '0'; // Convert binary to ASCII
-   Res[5] = '\0';                                      // Set string terminator
+   for (i = 0; i < 5; ++i) Res[4 - i] = CRC[i] ? '1' : '0'; //de binario a ascii
+   Res[5] = '\0';                                      // salto de linea
 
    return Res;
 }
@@ -102,8 +102,10 @@ void loop(){
     vw_wait_tx();
     mensaje_completo[6] = secuencia;
     Serial.print(int(secuencia));
+    delay(1000);
+
   }
   Serial.print("\n");
-  delay(1000);
+  delay(3000);
   // Serial.println("mensaje enviado");
 }
