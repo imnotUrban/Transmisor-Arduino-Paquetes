@@ -14,8 +14,6 @@ pin 15 5v
 */
 #include <VirtualWire.h>
 
-int contador = 0;
-
 char* MakeCRC(const char* BitString)
 {
    static char Res[6];                                 // CRC Result
@@ -44,10 +42,11 @@ char* MakeCRC(const char* BitString)
 
 
 // Cambiar destino[1] para comunicarse con otro grupo en unicast
-uint8_t destino[2] = {B00000000, B00000010};
-
+uint8_t destino[2] = {B00000000, B00000010}; // grupo 2
+int iteracion = 1;
 void setup(){
     Serial.begin(9600);
+    Serial.println("Prueba 1:");
     vw_set_ptt_inverted(true);
     vw_setup(2000);
     vw_set_rx_pin(2);
@@ -59,7 +58,10 @@ void loop(){
   uint8_t buflen = VW_MAX_MESSAGE_LEN;
   uint8_t Mensaje_recibido[8];
 
+
   if (vw_get_message(buf, &buflen)){
+    
+
     if((destino[1] == buf[3]) || (buf[3] == 0))
     {
       /**************************************************
@@ -97,56 +99,47 @@ void loop(){
       
 
       if(CRC_recibido == crc){
-        Serial.println("CRC Recibido correctamente");
+          Serial.print("CRC_OK,");
+        /*
+        * Recepción del grupo
+        */
+        Serial.print("GRUPO_");
+        Serial.print(buf[3]);
+        Serial.print(",");
 
-              /*
-      * Recepción del grupo
-      */
-      Serial.println("Numero grupo");
-      Serial.print(buf[3]);
-      Serial.print("\n");
+        /*
+        * Secuencia
+        */
 
-      /*
-      * Secuencia
-      */
+        Serial.print("Secuencia:");
+        Serial.print(buf[6]);
+        Serial.print(";\n");
+        
+        /*
+        * impresión del Mensaje
+        */
 
-      Serial.print("Secuencia: ");
-      Serial.print(buf[6]);
-      Serial.print("\n");
-
-      
-      /*
-      * Mensaje
-      */
-
-      Serial.print(" Mensaje: ");
-      for(int i = 0; i<8; i++){
-        if((char)buf[8+i]!=NULL){
-
-          Serial.print((char)buf[8+i]);
-        }
-      }
-      Serial.print("\n");
+        // Serial.print("Mensaje: ");
+        // for(int i = 0; i<8; i++){
+        //   if((char)buf[8+i]!=NULL){
+        //     Serial.print((char)buf[8+i]);
+        //   }
+        // }
+        // Serial.print("\n");
 
       } else{
-        Serial.println("nones");
+        Serial.print("CRC_MALO,");
+        Serial.print("CRC_RECIBIDO: ");
+        Serial.print(CRC_recibido,BIN);
+        Serial.print(",CRC_PROPIO: ,");
+        Serial.print(crc,BIN);
+        Serial.print(";\n");
       }
+    }else{
+        // Serial.print("Grupo incorrecto: ");
+        // Serial.print(buf[3]);
+        // Serial.print("\n");
 
-
-
-
-
-      //Serial.println("CRC: " );
-      // Serial.println(crc,BIN);
-
-
-
-      // Serial.print("Crc recibido: ");
-      // Serial.println(CRC_recibido,BIN);
-
-
-        // Serial.print("Secuencia: ");
-        // //Serial.print(buf[6]);
-    };
+    }
   }
 }
